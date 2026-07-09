@@ -1,7 +1,3 @@
-/* =============================================================================
- * Suika OS — Kernel Header (64-bit)
- * ============================================================================= */
-
 #ifndef KERNEL_H
 #define KERNEL_H
 
@@ -30,17 +26,6 @@ static inline void io_wait(void) { outb(0x80, 0); }
 
 #define UNUSED(x) ((void)(x))
 
-enum vga_color {
-    VGA_BLACK        = 0x0, VGA_BLUE         = 0x1,
-    VGA_GREEN        = 0x2, VGA_CYAN         = 0x3,
-    VGA_RED          = 0x4, VGA_MAGENTA      = 0x5,
-    VGA_BROWN        = 0x6, VGA_LIGHT_GREY   = 0x7,
-    VGA_DARK_GREY    = 0x8, VGA_LIGHT_BLUE   = 0x9,
-    VGA_LIGHT_GREEN  = 0xA, VGA_LIGHT_CYAN   = 0xB,
-    VGA_LIGHT_RED    = 0xC, VGA_LIGHT_MAGENTA= 0xD,
-    VGA_YELLOW       = 0xE, VGA_WHITE        = 0xF,
-};
-
 typedef struct {
     uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
     uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
@@ -63,13 +48,13 @@ void serial_puts(const char *str);
 void serial_put_hex(uint64_t value);
 void serial_put_dec(uint64_t value);
 
-void vga_clear(void);
-void vga_putchar(char c);
-void vga_puts(const char *str);
-void vga_puts_color(const char *str, uint8_t fg, uint8_t bg);
-void vga_put_hex(uint64_t value);
-void vga_put_dec(uint64_t value);
-void vga_set_color(uint8_t fg, uint8_t bg);
+void fb_init(uint64_t hhdm_offset, uint64_t fb_phys, uint64_t width, uint64_t height, uint64_t pitch, uint16_t bpp);
+void fb_clear(uint32_t color);
+void fb_putchar(char c);
+void fb_puts(const char *str);
+void fb_puts_color(const char *str, uint32_t fg, uint32_t bg);
+void fb_put_hex(uint64_t value);
+void fb_put_dec(uint64_t value);
 
 void timer_init(uint32_t frequency);
 uint64_t timer_get_ticks(void);
@@ -81,6 +66,7 @@ char keyboard_read(void);
 
 void gdt_init(void);
 void idt_init(void);
+void apic_init(uint64_t hhdm_offset);
 
 size_t strlen(const char *str);
 void *memset(void *dst, int c, size_t n);

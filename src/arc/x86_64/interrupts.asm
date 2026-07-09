@@ -133,6 +133,11 @@ irq_common:
     mov rdi, rsp
     call irq_handler
 
+    ; rax = new RSP from scheduler (0 = no switch)
+    test rax, rax
+    jz isr_return
+    mov rsp, rax
+
 isr_return:
     pop r15
     pop r14

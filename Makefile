@@ -39,11 +39,11 @@ all: $(ISO)
 
 .PHONY: run
 run: $(ISO)
-	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial file:$(BUILDDIR)/serial.log -display none
+	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial stdio -display none
 
 .PHONY: run-vga
 run-vga: $(ISO)
-	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial file:$(BUILDDIR)/serial.log
+	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial stdio
 
 .PHONY: run-bios
 run-bios: $(ISO)

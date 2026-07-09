@@ -21,14 +21,12 @@ void timer_handler(registers_t *regs) {
 uint64_t timer_get_ticks(void) { return timer_ticks; }
 
 void timer_sleep(uint32_t ms) {
-    uint64_t target = (uint64_t)ms * PIT_BASE_FREQ / ((uint64_t)pit_divisor * 1000);
-    uint16_t prev = pit_read_count();
-    uint64_t cycles = 0;
-    while (cycles < target) {
-        uint16_t cur = pit_read_count();
-        if (cur > prev) cycles++;
-        prev = cur;
+    uint64_t target = timer_ticks + (timer_freq * ms / 1000);
+    __asm__ volatile("sti");
+    while (timer_ticks < target) {
+        __asm__ volatile("hlt");
     }
+    __asm__ volatile("cli");
 }
 
 void timer_init(uint32_t frequency) {

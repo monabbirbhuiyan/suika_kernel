@@ -5,11 +5,21 @@
 [bits 64]
 [global _start]
 [extern kmain]
+[extern _bss_start]
+[extern _bss_end]
 
 section .text
 
 _start:
     cli
+
+    ; Zero BSS
+    mov rdi, _bss_start
+    mov rcx, _bss_end
+    sub rcx, rdi
+    xor al, al
+    cld
+    rep stosb
 
     mov dx, 0x3F8
     mov al, 'S'
