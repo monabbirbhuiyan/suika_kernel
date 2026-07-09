@@ -1,8 +1,8 @@
 ; =============================================================================
-; Suika OS — Interrupt Service Routines (32-bit)
+; Suika OS — Interrupt Service Routines (64-bit)
 ; =============================================================================
 
-[bits 32]
+[bits 64]
 
 extern isr_handler
 extern irq_handler
@@ -10,23 +10,23 @@ extern irq_handler
 %macro ISR_NOERRCODE 1
 [global isr%1]
 isr%1:
-    push dword 0
-    push dword %1
+    push 0
+    push %1
     jmp isr_common
 %endmacro
 
 %macro ISR_ERRCODE 1
 [global isr%1]
 isr%1:
-    push dword %1
+    push %1
     jmp isr_common
 %endmacro
 
 %macro IRQ 2
 [global irq%1]
 irq%1:
-    push dword 0
-    push dword %2
+    push 0
+    push %2
     jmp irq_common
 %endmacro
 
@@ -80,47 +80,74 @@ IRQ 13, 45
 IRQ 14, 46
 IRQ 15, 47
 
+; Common ISR handler
+; Stack: ss, rsp, rflags, cs, rip, error_code, int_no (pushed by stubs)
+; Then we push all general-purpose regs
 isr_common:
-    pusha
-    push ds
-
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
     mov ax, 0x10
     mov ds, ax
     mov es, ax
 
-    push esp
+    mov rdi, rsp
     call isr_handler
-    add esp, 4
 
     jmp isr_return
 
+; Common IRQ handler
 irq_common:
-    pusha
-    push ds
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
 
     mov ax, 0x10
     mov ds, ax
     mov es, ax
 
-    push esp
+    mov rdi, rsp
     call irq_handler
-    add esp, 4
 
 isr_return:
-    pop ds
-    popa
-    add esp, 8
-    iret
-
-[global gdt_flush]
-gdt_flush:
-    lgdt [eax]
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-    jmp 0x08:.reload
-.reload:
-    ret
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+    iretq

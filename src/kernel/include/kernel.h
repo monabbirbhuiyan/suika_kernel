@@ -1,24 +1,12 @@
 /* =============================================================================
- * Suika OS — Kernel Header (32-bit with 64-bit kernel support)
+ * Suika OS — Kernel Header (64-bit)
  * ============================================================================= */
 
 #ifndef KERNEL_H
 #define KERNEL_H
 
-typedef unsigned char       uint8_t;
-typedef unsigned short      uint16_t;
-typedef unsigned int        uint32_t;
-typedef unsigned long long  uint64_t;
-
-typedef signed char         int8_t;
-typedef signed short        int16_t;
-typedef signed int          int32_t;
-typedef signed long long    int64_t;
-
-typedef uint32_t            size_t;
-typedef int32_t             ssize_t;
-typedef uint32_t            uintptr_t;
-typedef int32_t             intptr_t;
+#include <stdint.h>
+#include <stddef.h>
 
 #define NULL ((void *)0)
 
@@ -54,20 +42,20 @@ enum vga_color {
 };
 
 typedef struct {
-    uint32_t ds;
-    uint32_t edi, esi, ebp, useless_esp, ebx, edx, ecx, eax;
-    uint32_t int_no;
-    uint32_t error_code;
-    uint32_t eip;
-    uint32_t cs;
-    uint32_t eflags;
-    uint32_t esp;
-    uint32_t ss;
+    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    uint64_t int_no;
+    uint64_t error_code;
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint64_t ss;
 } __attribute__((packed)) registers_t;
 
 void kmain(void);
 void panic(const char *message);
-void panic_assert(const char *file, uint32_t line, const char *desc);
+void panic_assert(const char *file, uint64_t line, const char *desc);
 
 void serial_init(void);
 void serial_putchar(char c);

@@ -1,67 +1,92 @@
-# =============================================================================
-# Suika OS — Makefile (32-bit kernel, switches to 64-bit at runtime)
-# =============================================================================
+# ============================================================================
+# Suika OS — Makefile (64-bit Limine ISO)
+# ============================================================================
 
-CC      = x86_64-elf-gcc
-AS      = nasm
-LD      = x86_64-elf-ld
+TOPDIR   := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+BUILDDIR := $(TOPDIR)/build
+OBJDIR   := $(BUILDDIR)/obj
+ISODIR   := $(BUILDDIR)/iso
+KERNEL   := $(BUILDDIR)/suika_kernel.elf
+ISO      := $(BUILDDIR)/suika_kernel.iso
 
-CFLAGS  = -ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 \
-          -fno-stack-protector -nostdlib -nostdinc -Wall -Wextra \
-          -Isrc/kernel/include -c -m32
-ASFLAGS = -f elf32
-LDFLAGS = -T config/linker.ld -nostdlib -m elf_i386
+CC  := x86_64-elf-gcc
+AS  := nasm
+LD  := x86_64-elf-ld
 
-ASM_SOURCES = \
-    src/arc/x86_64/boot/boot.asm \
-    src/arc/x86_64/interrupts.asm
+INC   := -I $(TOPDIR)/src/kernel/include
+CFLAGS  := -c -Wall -Wextra -std=gnu99 -nostdlib -ffreestanding \
+           -fno-stack-protector -fno-stack-check -fno-PIC -fno-pic \
+           -m64 -mno-red-zone -mno-sse -mno-mmx -mno-3dnow \
+           -mcmodel=kernel \
+           -O2 -pipe $(INC)
 
-C_SOURCES = \
-    src/kernel/kmain.c \
-    src/kernel/panic.c \
-    src/kernel/vga.c \
-    src/kernel/serial.c \
-    src/arc/x86_64/gdt.c \
-    src/arc/x86_64/idt.c \
-    src/arc/x86_64/drivers/keyboard.c \
-    src/arc/x86_64/drivers/timer.c \
-    src/kernel/memory/pmm.c \
-    src/kernel/memory/vmm.c
+ASFLAGS := -f elf64
 
-BUILD_DIR   = build
-OBJ_DIR     = $(BUILD_DIR)/obj
+LDFLAGS := -T $(TOPDIR)/config/linker.ld -nostdlib -m elf_x86_64
 
-ASM_OBJECTS = $(patsubst %.asm,$(OBJ_DIR)/%.asm.o,$(ASM_SOURCES))
-C_OBJECTS   = $(patsubst %.c,$(OBJ_DIR)/%.c.o,$(C_SOURCES))
-ALL_OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+LIMINE  := $(TOPDIR)/limine/limine
+LM_BOOT := $(TOPDIR)/limine
 
-KERNEL_ELF  = $(BUILD_DIR)/suika_kernel.elf
+C_SRCS := $(shell find $(TOPDIR)/src/kernel -name '*.c') $(shell find $(TOPDIR)/src/arc/x86_64 -name '*.c')
+AS_SRCS := $(shell find $(TOPDIR)/src/arc/x86_64 -name '*.asm')
 
-.PHONY: all clean run
+C_OBJS := $(patsubst $(TOPDIR)/src/%.c, $(OBJDIR)/src/%.c.o, $(C_SRCS))
+AS_OBJS := $(patsubst $(TOPDIR)/src/%.asm, $(OBJDIR)/src/%.asm.o, $(AS_SRCS))
+OBJS := $(C_OBJS) $(AS_OBJS)
 
-all: $(KERNEL_ELF)
+.PHONY: all
+all: $(ISO)
 
-$(KERNEL_ELF): $(ALL_OBJECTS)
-	@mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $^
+.PHONY: run
+run: $(ISO)
+	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial file:$(BUILDDIR)/serial.log -display none
+
+.PHONY: run-vga
+run-vga: $(ISO)
+	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial file:$(BUILDDIR)/serial.log
+
+.PHONY: run-bios
+run-bios: $(ISO)
+	qemu-system-x86_64 -M q35 -cdrom $(ISO) -boot d -m 128M -serial file:$(BUILDDIR)/serial.log -display none
+
+# Compilation rules
+$(AS_OBJS): $(OBJDIR)/src/%.asm.o: $(TOPDIR)/src/%.asm
+	@mkdir -p $(@D)
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(C_OBJS): $(OBJDIR)/src/%.c.o: $(TOPDIR)/src/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(KERNEL): $(OBJS) $(TOPDIR)/config/linker.ld
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 	@echo "Kernel linked: $@"
 
-$(OBJ_DIR)/%.asm.o: %.asm
-	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $@
-	@echo "  AS    $<"
+# ISO build
+$(ISO): $(KERNEL) $(LIMINE)
+	rm -rf $(ISODIR)
+	mkdir -p $(ISODIR)/boot
+	cp $(KERNEL) $(ISODIR)/boot/
+	mkdir -p $(ISODIR)/boot/limine
+	cp $(TOPDIR)/limine.conf $(ISODIR)/boot/limine/
+	cp $(LM_BOOT)/limine-bios.sys $(LM_BOOT)/limine-bios-cd.bin $(LM_BOOT)/limine-uefi-cd.bin $(ISODIR)/boot/limine/
+	mkdir -p $(ISODIR)/EFI/BOOT
+	cp $(LM_BOOT)/BOOTX64.EFI $(ISODIR)/EFI/BOOT/
+	cp $(LM_BOOT)/BOOTIA32.EFI $(ISODIR)/EFI/BOOT/
+	xorriso -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
+		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
+		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
+		-efi-boot-part --efi-boot-image --protective-msdos-label \
+		$(ISODIR) -o $(ISO)
+	$(LIMINE) bios-install $(ISO)
+	@echo "ISO created: $(ISO)"
+	rm -rf $(ISODIR)
 
-$(OBJ_DIR)/%.c.o: %.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -MMD -MP $< -o $@
-	@echo "  CC    $<"
-
+.PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILDDIR)
 
-run: $(KERNEL_ELF)
-	qemu-system-i386 \
-		-serial stdio \
-		-display none \
-		-m 128M \
-		-kernel $(KERNEL_ELF)
+.PHONY: distclean
+distclean: clean
+	$(MAKE) -C $(LM_BOOT) clean 2>/dev/null || true
+	rm -rf $(LM_BOOT)

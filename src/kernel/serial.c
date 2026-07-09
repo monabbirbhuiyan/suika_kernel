@@ -33,13 +33,13 @@ void serial_puts(const char *str) {
 }
 
 void serial_put_hex(uint64_t value) {
-    char buf[18];
+    char buf[19];
     buf[0] = '0'; buf[1] = 'x';
     for (int i = 15; i >= 0; i--) {
         int digit = (value >> (i * 4)) & 0xF;
-        buf[16 - i] = digit < 10 ? '0' + digit : 'a' + digit - 10;
+        buf[17 - i] = digit < 10 ? '0' + digit : 'a' + digit - 10;
     }
-    buf[17] = '\0';
+    buf[18] = '\0';
     serial_puts(buf);
 }
 
@@ -48,7 +48,7 @@ void serial_put_dec(uint64_t value) {
     char buf[21];
     int i = 20;
     buf[20] = '\0';
-    uint32_t v = (uint32_t)value;
+    uint64_t v = value;
     while (v > 0) { buf[--i] = '0' + (v % 10); v /= 10; }
     serial_puts(&buf[i]);
 }

@@ -12,7 +12,7 @@ void panic(const char *message) {
     for (;;) { __asm__ volatile("cli; hlt"); }
 }
 
-void panic_assert(const char *file, uint32_t line, const char *desc) {
+void panic_assert(const char *file, uint64_t line, const char *desc) {
     __asm__ volatile("cli");
     serial_puts("\n=== ASSERTION FAILED ===\nFile: ");
     serial_puts(file);
